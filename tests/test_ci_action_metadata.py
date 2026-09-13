@@ -1,4 +1,4 @@
-"""Cross-checks between `action.yml`, `action/Dockerfile`, the README's
+"""Cross-checks between `action.yml`, `Dockerfile.action`, the README's
 GitHub Action snippet, and `no_human.ci_action.run`'s own constants.
 
 These are the "two places say the same thing" guards: a default changed in one
@@ -21,7 +21,7 @@ pytestmark = pytest.mark.repoguard
 
 REPO = Path(__file__).resolve().parents[1]
 ACTION_YML = REPO / "action.yml"
-DOCKERFILE = REPO / "action" / "Dockerfile"
+DOCKERFILE = REPO / "Dockerfile.action"
 README = REPO / "README.md"
 
 
@@ -38,8 +38,21 @@ def test_action_yml_exists_and_parses(action_yml):
 def test_runs_using_docker_image_matches_dockerfile_path(action_yml):
     runs = action_yml["runs"]
     assert runs["using"] == "docker"
-    assert runs["image"] == "action/Dockerfile"
+    assert runs["image"] == "Dockerfile.action"
     assert DOCKERFILE.exists()
+
+
+def test_dockerfile_action_lives_at_repo_root_not_a_subdirectory():
+    # Verified against a real GitHub Actions run: for a `using: docker`
+    # action, the build context docker uses is the DIRECTORY CONTAINING the
+    # `runs.image` Dockerfile, not the repository root. `action/Dockerfile`
+    # (in a subdirectory containing only the Dockerfile itself) built with an
+    # effectively empty context ("transferring context: 2B done" in the real
+    # run log) and every `COPY src/ ./src/` / `COPY pyproject.toml ...`
+    # instruction failed with "not found" — 100% reproducible, every run.
+    # Moving the Dockerfile to the repo root (this file) makes the build
+    # context the repo root, where those COPY sources actually live.
+    assert DOCKERFILE.parent == REPO
 
 
 def test_action_yml_has_no_double_brace_expression_anywhere():
