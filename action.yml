@@ -40,9 +40,13 @@ inputs:
     description: >-
       Token used only to read and write the gate's own comment on this pull
       request (`issues/comments` read/create/update). Never used for merges,
-      pushes, reviews, or any other endpoint. Usually `${{ github.token }}`.
+      pushes, reviews, or any other endpoint. Pass
+      `github_token: ${{ github.token }}` explicitly — Docker action inputs
+      cannot default to the `github` context (the runner rejects
+      `${{ github.token }}` as a default with "Unrecognized named-value:
+      'github'" before the container ever starts), so there is no default
+      here; omitting it fails loudly at run time instead.
     required: false
-    default: ${{ github.token }}
   fail_on_findings:
     description: >-
       When "true" (default), the step exits non-zero if the gate's verdict

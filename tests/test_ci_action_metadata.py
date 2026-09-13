@@ -66,8 +66,15 @@ def test_credential_input_is_required_with_no_default(action_yml):
     assert "default" not in credential
 
 
-def test_github_token_defaults_to_the_job_token(action_yml):
-    assert action_yml["inputs"]["github_token"]["default"] == "${{ github.token }}"
+def test_github_token_has_no_default(action_yml):
+    # A verified-live GitHub Actions run proved `default: ${{ github.token }}`
+    # is rejected for a `using: docker` action's inputs before the container
+    # ever starts: "Unrecognized named-value: 'github'" — the `github`
+    # context is not available while input defaults are resolved. So this
+    # input must have no default; the workflow passes it explicitly instead.
+    github_token = action_yml["inputs"]["github_token"]
+    assert github_token.get("required") is False
+    assert "default" not in github_token
 
 
 def test_outputs_declare_verdict_comment_url_and_skipped(action_yml):
@@ -116,3 +123,16 @@ def test_readme_workflow_snippet_parses_and_uses_this_action():
     assert any(u.startswith("no-human-ai/no_human") for u in uses)
     credential_step = next(s for s in steps if s.get("uses", "").startswith("no-human-ai/no_human"))
     assert "credential" in credential_step.get("with", {})
+
+
+def test_readme_workflow_snippet_passes_github_token_explicitly(action_yml):
+    # github_token has no action.yml default (see
+    # test_github_token_has_no_default), so the README's own example must
+    # pass it explicitly or a user copying it verbatim gets an empty-token
+    # failure on their very first run.
+    assert "default" not in action_yml["inputs"]["github_token"]
+    snippets = [s for s in _readme_workflow_snippets() if "no-human-ai/no_human" in s]
+    parsed = yaml.safe_load(snippets[0])
+    steps = next(iter(parsed["jobs"].values()))["steps"]
+    credential_step = next(s for s in steps if s.get("uses", "").startswith("no-human-ai/no_human"))
+    assert credential_step.get("with", {}).get("github_token") == "${{ github.token }}"
