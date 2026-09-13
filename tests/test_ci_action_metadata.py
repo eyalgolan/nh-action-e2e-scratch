@@ -42,6 +42,18 @@ def test_runs_using_docker_image_matches_dockerfile_path(action_yml):
     assert DOCKERFILE.exists()
 
 
+def test_action_yml_has_no_double_brace_expression_anywhere():
+    # Verified against a real GitHub Actions run: the runner expands
+    # `${{ ... }}` wherever it appears in action.yml — including inside a
+    # plain description string, not just in a `default:` field — before a
+    # docker-type action's container starts, and the `github` context is not
+    # available at that phase ("Unrecognized named-value: 'github'"). A
+    # `${{ github.token }}` default (or even a mention of it in prose) fails
+    # every single run. So the file must never contain a literal `${{`.
+    text = ACTION_YML.read_text(encoding="utf-8")
+    assert "${{" not in text
+
+
 @pytest.mark.parametrize(
     "input_name, expected_default",
     [
